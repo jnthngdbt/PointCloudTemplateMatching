@@ -30,3 +30,8 @@
 *.exe
 *.out
 *.app
+*.db
+*.ipch
+*.bin
+*.db-wal
+bin/*
