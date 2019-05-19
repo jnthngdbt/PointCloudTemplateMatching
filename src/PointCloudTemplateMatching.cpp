@@ -82,22 +82,53 @@ void testCorrelationScore()
     std::cout << "correlation x: " << computeCorrelation(0) << std::endl;
     std::cout << "correlation y: " << computeCorrelation(1) << std::endl;
     std::cout << "correlation z: " << computeCorrelation(2) << std::endl;
+}
 
-    //// Compute correlation.
-    //auto prods{ Eigen::Matrix3f::Zero() };
-    //auto sumsS{ Eigen::Vector3f::Zero() };
-    //auto sumsT{ Eigen::Vector3f::Zero() };
-    //for (const auto& c : correspondences)
-    //{
-    //    const auto s = source->at(c.index_query).getVector3fMap();
-    //    const auto t = target->at(c.index_match).getVector3fMap();
+void testCubeWarp()
+{
+    CloudType::Ptr cube(new CloudType());
 
-    //    prods += s * t.transpose();
-    //    sumsS += s;
-    //    sumsT += t;
-    //}
+    int idx = 0;
+    std::vector<int> idxFeature;
+    const float gridSize = 0.2;
+    for (float x = 0.0; x <= 1.0; x += gridSize)
+        for (float y = 0.0; y <= 1.0; y += gridSize)
+            for (float z = 0.0; z <= 1.0; z += gridSize)
+                if ((x == 0 || x == 1) || (y == 0) || (z == 0 || z == 1))
+                {
+                    cube->push_back({ x,y,z });
+                    idxFeature.emplace_back(idx++);
+                }
 
-    //Eigen::Matrix4f correlation{ Eigen::Matrix4f::Zero() };
+    VISUALIZER(pcv::VisualizerData viewer("cube-warp"));
+    VISUALIZER(viewer.addCloud(*cube, "cube", 0).addFeature(idxFeature, "idx").setColor(0.4, 0.4, 1.0).setOpacity(1.0).setSize(8));
+
+    Eigen::Matrix4f transf; // converted to affine at transform
+    transf.setIdentity();
+    transf(3) = randf();
+    transf(7) = randf();
+    transf(11) = -randf();
+    //transf.setRandom();
+    //for (int i = 0; i < 16; ++i) transf(i) = randf();
+
+    std::cout << transf << std::endl;
+
+    CloudType::Ptr warp(new CloudType(*cube));
+    //pcl::transformPointCloud(*cube, *warp, proj); // does not accept projective
+
+    for (int i = 0; i < cube->size(); ++i)
+    {
+        const auto& p = cube->at(i).getVector4fMap();
+        auto q = transf * p;
+        warp->at(i) = pcl::PointXYZ(q[0], q[1], q[2]);
+        warp->at(i).x /= q[3];
+        warp->at(i).y /= q[3];
+        warp->at(i).z /= q[3];
+    }
+
+    VISUALIZER(viewer.addCloud(*warp, "warp", 1).addFeature(idxFeature, "idx").setColor(1.0, 0.4, 0.4).setOpacity(1.0).setSize(8));
+
+
 }
 
 void testSomething()
@@ -110,7 +141,10 @@ void testSomething()
 
 int main(int argc, char* argv[])
 {
-    testCorrelationScore();
+    srand(time(NULL)); // random seed, to have different random at each run
+
+    //testCorrelationScore();
+    testCubeWarp();
 
     return 0;
 }
