@@ -20,7 +20,7 @@ float randf() { return rand() / static_cast<float>(RAND_MAX); }
 
 void testCorrelationScore()
 {
-    auto makeCloud = [&](float scale)
+    auto makeCloud = [&](float scale, float freq)
     {
         CloudType::Ptr cloud(new CloudType());
 
@@ -29,7 +29,7 @@ void testCorrelationScore()
             for (float y = 0.0; y < 1.0; y += 0.02)
             {
                 // The offset is to make sure to have consistent normals directions.
-                const float z = 3.0 + scale * std::sin(x*M_PI*1.0) * std::sin(y*M_PI*1.0);
+                const float z = 3.0 + scale * std::sin(x*M_PI*freq) * std::sin(y*M_PI*freq);
                 cloud->push_back({ 
                     x + 0.03f * randf(),
                     y + 0.03f * randf(),
@@ -40,8 +40,8 @@ void testCorrelationScore()
         return cloud;
     };
 
-    const auto source = makeCloud(0.3);
-    const auto target = makeCloud(0.3);
+    const auto source = makeCloud(0.3, 1.0);
+    const auto target = makeCloud(0.3, 1.1);
 
     const int N = source->size();
 
