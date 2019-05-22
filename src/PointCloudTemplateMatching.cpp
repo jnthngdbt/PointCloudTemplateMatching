@@ -12,7 +12,7 @@
 
 #include "VisualizerData.h"
 
-#define VISUALIZER(x) x
+#define VISUALIZER_CALL(x) x
 
 using CloudType = pcl::PointCloud<pcl::PointXYZ>;
 
@@ -51,10 +51,10 @@ void testCorrelationScore()
     for (auto i = 0; i < N; ++i)
         correspondences.emplace_back(i, i, 0);
 
-    VISUALIZER(pcv::VisualizerData viewer("correlation-score"));
-    VISUALIZER(viewer.addCloud(*source, "source").setColor(0.4, 0.4, 1.0).setOpacity(0.5).setSize(3));
-    VISUALIZER(viewer.addCloud(*target, "target").setColor(1.0, 0.0, 0.0).setOpacity(0.5).setSize(3));
-    VISUALIZER(viewer.addCorrespondences(*source, *target, correspondences, "correspondences").setOpacity(0.2));
+    VISUALIZER_CALL(pcv::VisualizerData viewer("correlation-score"));
+    VISUALIZER_CALL(viewer.addCloud(*source, "source").setColor(0.4, 0.4, 1.0).setOpacity(0.5).setSize(3));
+    VISUALIZER_CALL(viewer.addCloud(*target, "target").setColor(1.0, 0.0, 0.0).setOpacity(0.5).setSize(3));
+    VISUALIZER_CALL(viewer.addCorrespondences(*source, *target, correspondences, "correspondences").setOpacity(0.2));
 
     auto computeCorrelation = [&](int idx)
     {
@@ -100,8 +100,8 @@ void testCubeWarp()
                     idxFeature.emplace_back(idx++);
                 }
 
-    VISUALIZER(pcv::VisualizerData viewer("cube-warp"));
-    VISUALIZER(viewer.addCloud(*cube, "cube", 0).addFeature(idxFeature, "idx").setColor(0.4, 0.4, 1.0).setOpacity(1.0).setSize(8));
+    VISUALIZER_CALL(pcv::VisualizerData viewer("cube-warp"));
+    VISUALIZER_CALL(viewer.addCloud(*cube, "cube", 0).addFeature(idxFeature, "idx").setColor(0.4, 0.4, 1.0).setOpacity(1.0).setSize(8));
 
     Eigen::Matrix4f transf; // converted to affine at transform
     transf.setIdentity();
@@ -126,17 +126,49 @@ void testCubeWarp()
         warp->at(i).z /= q[3];
     }
 
-    VISUALIZER(viewer.addCloud(*warp, "warp", 1).addFeature(idxFeature, "idx").setColor(1.0, 0.4, 0.4).setOpacity(1.0).setSize(8));
-
-
+    VISUALIZER_CALL(viewer.addCloud(*warp, "warp", 1).addFeature(idxFeature, "idx").setColor(1.0, 0.4, 0.4).setOpacity(1.0).setSize(8));
 }
 
-void testSomething()
+void testCorrelationAxis()
 {
-    std::string path = "../data/";
+    int N = 1000;
+    std::vector<float> x(N, 0);
+    std::vector<float> y1(N, 0);
+    std::vector<float> y2(N, 0);
 
-    CloudType::Ptr model(new CloudType);
-    pcl::io::loadPCDFile(path + "model.pcd", *model);
+    for (int i = 0; i < N; ++i)
+    {
+        x[i] = i * 1.0 / N;
+        y1[i] = std::sin(x[i] * M_PI * 10.0);
+        y2[i] = 2.0 * y1[i];
+    }
+
+    auto getVal = [](float v) { return v; };
+
+    VISUALIZER_CALL(pcv::VisualizerData v1("scaled"));
+    VISUALIZER_CALL(v1.addPlot(x, y1, "x-y1", getVal, getVal, 0));
+    VISUALIZER_CALL(v1.addPlot(x, y2, "x-y2", getVal, getVal, 0));
+    VISUALIZER_CALL(v1.addPlot(y1, y2, "y1-y2", getVal, getVal, 1));
+
+    std::vector<float> xr1(N, 0);
+    std::vector<float> xr2(N, 0);
+    std::vector<float> yr1(N, 0);
+    std::vector<float> yr2(N, 0);
+
+    // Rotate 45 degrees.
+    const float r = 0.7071;
+    for (int i = 0; i < N; ++i)
+    {
+        xr1[i] = x[i] * r + y1[i] * -r;
+        xr2[i] = x[i] * r + y2[i] * -r;
+        yr1[i] = x[i] * r + y1[i] * r;
+        yr2[i] = x[i] * r + y2[i] * r;
+    }
+
+    VISUALIZER_CALL(pcv::VisualizerData v2("rotated"));
+    VISUALIZER_CALL(v2.addPlot(xr1, yr1, "xr1-yr1", getVal, getVal, 0));
+    VISUALIZER_CALL(v2.addPlot(xr2, yr2, "xr2-yr2", getVal, getVal, 0));
+    VISUALIZER_CALL(v2.addPlot(yr1, yr2, "yr1-yr2", getVal, getVal, 1));
 }
 
 int main(int argc, char* argv[])
@@ -144,7 +176,8 @@ int main(int argc, char* argv[])
     srand(time(NULL)); // random seed, to have different random at each run
 
     //testCorrelationScore();
-    testCubeWarp();
+    //testCubeWarp();
+    testCorrelationAxis();
 
     return 0;
 }
