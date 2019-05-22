@@ -27,6 +27,29 @@ namespace pcv
         return addFeature(castData, name, viewport);
     }
 
+    template<typename T, typename F>
+    Cloud& VisualizerData::addPlot(const T& data, const CloudName& name, float scale, F func, ViewportIdx viewport)
+    {
+        int N = data.size();
+
+        FeatureData x(N, 0);
+        for (int i = 0; i < N; ++i)
+            x[i] = i * (1.0/N) * scale;
+
+        return addPlot(x, data, name, [](float v) { return v; }, func, viewport);
+    }
+
+    template<typename Tx, typename Ty, typename Fx, typename Fy>
+    Cloud& VisualizerData::addPlot(const Tx& xData, const Ty& yData, const CloudName& name, Fx xFunc, Fy yFunc, ViewportIdx viewport)
+    {
+        auto& cloud = getCloud(name);
+        cloud.addFeature(xData, "x", xFunc, viewport);
+        cloud.addFeature(yData, "y", yFunc, viewport);
+        cloud.addFeature(FeatureData(cloud.getNbPoints(), 0), "z", viewport);
+        cloud.addSpace("x", "y", "z");
+        return cloud;
+    }
+
     template<typename T>
     Cloud& VisualizerData::addCloud(const pcl::PointCloud<T>& data, const CloudName& name, ViewportIdx viewport)
     {
@@ -48,15 +71,15 @@ namespace pcv
     }
 
     template<typename T>
-    Cloud& VisualizerData::addCloudCorrespondences(const pcl::PointCloud<T>& source, const pcl::PointCloud<T>& target, const pcl::Correspondences& correspondences, const CloudName& name, ViewportIdx viewport)
+    Cloud& VisualizerData::addCloudCorrespondences(const pcl::PointCloud<T>& source, const pcl::PointCloud<T>& target, const pcl::Correspondences& correspondences, bool useSource, const CloudName& name, ViewportIdx viewport)
     {
         pcl::PointCloud<T> cloud;
-        pcl::ConstCloudIterator<T> sourceIt (source, correspondences, true);
+        pcl::ConstCloudIterator<T> inputIt (useSource ? source : target, correspondences, useSource);
 
-        while (sourceIt.isValid())
+        while (inputIt.isValid())
         {
-            cloud.push_back(*sourceIt);
-            ++sourceIt;
+            cloud.push_back(*inputIt);
+            ++inputIt;
         }
 
         return getCloud(name).addCloud(cloud, viewport);
