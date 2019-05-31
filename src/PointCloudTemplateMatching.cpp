@@ -168,7 +168,8 @@ void testCorrelationAxis()
     VISUALIZER_CALL(pcv::VisualizerData v2("rotated"));
     VISUALIZER_CALL(v2.addPlot(xr1, yr1, "xr1-yr1", getVal, getVal, 0));
     VISUALIZER_CALL(v2.addPlot(xr2, yr2, "xr2-yr2", getVal, getVal, 0));
-    VISUALIZER_CALL(v2.addPlot(yr1, yr2, "yr1-yr2", getVal, getVal, 1));
+    VISUALIZER_CALL(v2.addPlot(xr1, xr2, "xr1-xr2", getVal, getVal, 1));
+    VISUALIZER_CALL(v2.addPlot(yr1, yr2, "yr1-yr2", getVal, getVal, 2));
 }
 
 int main(int argc, char* argv[])
