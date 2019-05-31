@@ -132,48 +132,195 @@ void testCubeWarp()
 void testCorrelationAxis()
 {
     int N = 1000;
-    std::vector<float> x(N, 0);
-    std::vector<float> y1(N, 0);
-    std::vector<float> y2(N, 0);
+    double makeScale = 0.2;
 
-    for (int i = 0; i < N; ++i)
+    auto makeDomain = [&]()
     {
-        x[i] = i * 1.0 / N;
-        y1[i] = std::sin(x[i] * M_PI * 10.0);
-        y2[i] = 2.0 * y1[i];
+        std::vector<float> x(N, 0);
+        for (int i = 0; i < N; ++i)
+            x[i] = i * 1.0 / N - 0.5; // [-0.5, 0.5] 
+        return x;
+    };
+
+    auto makeWave = [&](double offset, double scale, double freq, double phaseRad)
+    {
+        const auto x = makeDomain();
+        std::vector<float> y(N, 0);
+        for (int i = 0; i < N; ++i)
+            y[i] = offset + makeScale * scale * std::cos(x[i] * M_PI * freq + phaseRad);
+        return y;
+    };
+
+    auto makeBump = [&](double scale)
+    {
+        return makeWave(-0.5 * scale * makeScale, scale, 1, 0);
+    };
+
+    auto rotate = [&](std::vector<float>& x, std::vector<float>& y, double angleDeg)
+    {
+        const auto angleRad = angleDeg * M_PI / 180.0;
+        const auto c = std::cos(angleRad);
+        const auto s = std::sin(angleRad);
+
+        std::vector<float> xin(x);
+        std::vector<float> yin(y);
+
+        for (int i = 0; i < N; ++i)
+        {
+            x[i] = xin[i] * c - yin[i] * s;
+            y[i] = xin[i] * s + yin[i] * c;
+        }
+    };
+
+    auto add = [&](const std::vector<float>& x, const std::vector<float>& y)
+    {
+        std::vector<float> r(N, 0);
+        for (int i = 0; i < N; ++i)
+            r[i] = x[i] + y[i];
+        return r;
+    };
+
+    auto computeCorrelation = [&](const std::vector<float>& x, const std::vector<float>& y)
+    {
+        const int N = x.size();
+
+        float Cx{ 0 };
+        float Cy{ 0 };
+        float Cxx{ 0 };
+        float Cxy{ 0 };
+        float Cyy{ 0 };
+
+        for (int i = 0; i < N; ++i)
+        {
+            Cx += x[i];
+            Cy += y[i];
+            Cxx += x[i] * x[i];
+            Cyy += y[i] * y[i];
+            Cxy += x[i] * y[i];
+        }
+
+        return (N*Cxy - Cx * Cy) / (std::sqrt(N*Cxx - Cx * Cx) * std::sqrt(N*Cyy - Cy * Cy));
+    };
+
+    auto visualize = [&](
+        const std::string name, 
+        const std::vector<float>& x1, const std::vector<float>& y1,
+        const std::vector<float>& x2, const std::vector<float>& y2)
+    {
+        auto getVal = [](float v) { return v; };
+
+        VISUALIZER_CALL(pcv::VisualizerData viewer(name));
+        VISUALIZER_CALL(viewer.addPlot(x1, y1, "x1-y1", getVal, getVal, 0).setSize(2).setColor(1,0,0));
+        VISUALIZER_CALL(viewer.addPlot(x2, y2, "x2-y2", getVal, getVal, 0).setSize(2).setColor(0.4,0.4,1.0));
+        VISUALIZER_CALL(viewer.addPlot(x1, x2, "x1-x2", getVal, getVal, 1).setSize(2).setColor(0,1,0));
+        VISUALIZER_CALL(viewer.addPlot(y1, y2, "y1-y2", getVal, getVal, 2).setSize(2).setColor(0,1,0));
+    };
+
+    auto print = [&](
+        const std::string name, 
+        const std::vector<float>& x1, const std::vector<float>& y1,
+        const std::vector<float>& x2, const std::vector<float>& y2)
+    {
+        std::cout << name << " correlation xx, yy: " << computeCorrelation(x1, x2) << ", " << computeCorrelation(y1, y2) << std::endl;
+    };
+
+    {
+        const std::string name = "same-sine-scaled";
+        auto x1 = makeDomain();
+        auto y1 = makeWave(0, 1, 10, 0);
+        auto x2 = makeDomain();
+        auto y2 = makeWave(0, 2, 10, 0);
+        print(name, x1, y1, x2, y2);
+        visualize(name, x1, y1, x2, y2);
     }
 
-    auto getVal = [](float v) { return v; };
-
-    VISUALIZER_CALL(pcv::VisualizerData v1("scaled"));
-    VISUALIZER_CALL(v1.addPlot(x, y1, "x-y1", getVal, getVal, 0));
-    VISUALIZER_CALL(v1.addPlot(x, y2, "x-y2", getVal, getVal, 0));
-    VISUALIZER_CALL(v1.addPlot(y1, y2, "y1-y2", getVal, getVal, 1));
-
-    std::vector<float> xr1(N, 0);
-    std::vector<float> xr2(N, 0);
-    std::vector<float> yr1(N, 0);
-    std::vector<float> yr2(N, 0);
-
-    // Rotate 45 degrees.
-    const float r = 0.7071;
-    for (int i = 0; i < N; ++i)
     {
-        xr1[i] = x[i] * r + y1[i] * -r;
-        xr2[i] = x[i] * r + y2[i] * -r;
-        yr1[i] = x[i] * r + y1[i] * r;
-        yr2[i] = x[i] * r + y2[i] * r;
+        const std::string name = "same-sine-scaled-offset";
+        auto x1 = makeDomain();
+        auto y1 = makeWave(0.3, 1, 10, 0);
+        auto x2 = makeDomain();
+        auto y2 = makeWave(0, 2, 10, 0);
+        print(name, x1, y1, x2, y2);
+        visualize(name, x1, y1, x2, y2);
     }
 
-    VISUALIZER_CALL(pcv::VisualizerData v2("rotated"));
-    VISUALIZER_CALL(v2.addPlot(xr1, yr1, "xr1-yr1", getVal, getVal, 0));
-    VISUALIZER_CALL(v2.addPlot(xr2, yr2, "xr2-yr2", getVal, getVal, 0));
-    VISUALIZER_CALL(v2.addPlot(xr1, xr2, "xr1-xr2", getVal, getVal, 1));
-    VISUALIZER_CALL(v2.addPlot(yr1, yr2, "yr1-yr2", getVal, getVal, 2));
+    {
+        const std::string name = "same-sine-scaled-ortho";
+        auto x1 = makeDomain();
+        auto y1 = makeWave(0, 1, 10, 0);
+        auto x2 = makeDomain();
+        auto y2 = makeWave(0, 2, 10, 0.5 * M_PI); // orthogonal
+        print(name, x1, y1, x2, y2);
+        visualize(name, x1, y1, x2, y2);
+    }
+
+    {
+        const std::string name = "same-sine-otho-rotated";
+        auto x1 = makeDomain();
+        auto y1 = makeWave(0, 1, 10, 0);
+        auto x2 = makeDomain();
+        auto y2 = makeWave(0, 2, 10, 0.5 * M_PI); // orthogonal
+        const double angleStep = 10.0;
+        for (double angle = 0.0; angle < 90.0; angle += angleStep)
+        {
+            rotate(x1, y1, angleStep);
+            rotate(x2, y2, angleStep);
+            print(name, x1, y1, x2, y2);
+            visualize(name, x1, y1, x2, y2);
+        }
+    }
+
+    {
+        const std::string name = "same-sine-scaled-ortho-bump";
+        auto x1 = makeDomain();
+        auto y1 = add(makeBump(5), makeWave(0, 0.4, 10, 0));
+        auto x2 = makeDomain();
+        auto y2 = add(makeBump(5), makeWave(0, 0.8, 10, 0.5 * M_PI)); // orthogonal
+        print(name, x1, y1, x2, y2);
+        visualize(name, x1, y1, x2, y2);
+    }
+
+    {
+        const std::string name = "same-sine-scaled-phased";
+        auto x1 = makeDomain();
+        auto y1 = makeWave(0, 1, 10, 0);
+        auto x2 = makeDomain();
+        auto y2 = makeWave(0, 2, 10, 0.1 * M_PI);
+        print(name, x1, y1, x2, y2);
+        visualize(name, x1, y1, x2, y2);
+    }
+
+    {
+        const std::string name = "same-sine-scaled";
+        auto x1 = makeDomain();
+        auto y1 = makeWave(0, 1, 10, 0);
+        auto x2 = makeDomain();
+        auto y2 = makeWave(0, 2, 10, 0);
+        print(name, x1, y1, x2, y2);
+        visualize(name, x1, y1, x2, y2);
+    }
+
+    {
+        const std::string name = "same-sine-scaled-rotated";
+        auto x1 = makeDomain();
+        auto y1 = makeWave(0, 1, 10, 0);
+        auto x2 = makeDomain();
+        auto y2 = makeWave(0, 2, 10, 0);
+        const double angleStep = 10.0;
+        for (double angle = 0.0; angle < 90.0; angle += angleStep)
+        {
+            rotate(x1, y1, angleStep);
+            rotate(x2, y2, angleStep);
+            print(name, x1, y1, x2, y2);
+            visualize(name, x1, y1, x2, y2);
+        }
+    }
 }
 
 int main(int argc, char* argv[])
 {
+    VISUALIZER_CALL(pcv::VisualizerData::clearSavedData(0.5));
+
     srand(time(NULL)); // random seed, to have different random at each run
 
     //testCorrelationScore();
